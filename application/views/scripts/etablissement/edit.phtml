@@ -475,6 +475,7 @@
             <dt>Géolocalisation</dt>
             <dd>
                 <?php if($this->key_ign != null) : ?><button id="geolocme" class='btn btn-small'><i class="icon-map-marker"></i> Géolocaliser cette adresse (Geoportail)</button><?php endif ?>
+                <?php if($this->geoconcept_url != null) : ?><button id="geolocme-geoconcept" class='btn btn-small'><i class="icon-map-marker"></i> Géolocaliser cette adresse (Geoconcept)</button><?php endif ?>
                 <button id="geolocme_nominatim" class='btn btn-small'><i class="icon-map-marker"></i> Géolocaliser cette adresse (Nominatim)</button>
                 <br/>
                 <small>Résultat : <span class='result'>Inconnu</span></small>
@@ -491,8 +492,27 @@
             </dd>
         </dl>
         <?php if($this->key_ign != null): ?>
-            <script type="text/javascript" src="//api.ign.fr/geoportail/api/js/2.1.2/GeoportalExtended.js"></script>
-            <div id='geoportail-container' style="height: 400px"></div>
+            <div id="geoportail-container" style="height: 400px;"></div>
+            <!-- SDK Géoportail -->
+            <script src="/js/sdk-ol/GpSDK3D.js"></script>
+            <link rel="stylesheet" href="/js/sdk-ol/GpSDK3D.css" />
+            <!-- FIN SDK -->
+            <!-- Déplacement du bouton FullScreen (sinon supperposé avec le gestionnaire de couches) -->
+            <style>
+            .ol-full-screen {right:9px; top:49px}
+            </style>
+        <?php endif ?>
+        
+        <?php if($this->geoconcept_url != null) : ?>
+            <div id='geoconcept-container'  style="height: 400px; width: 100%"></div>
+            <script type="text/javascript" src="/js/geoconcept/OpenLayers.js"></script>
+            <script type="text/javascript" src="/js/geoconcept/proj4js.js"></script>
+            <script type="text/javascript" src="/js/geoconcept/htc-lite.js"></script>
+            <?php if ($projection = getenv('PREVARISC_PLUGIN_GEOCONCEPT_PROJECTION')): ?>
+            <script type="text/javascript" src="/js/geoconcept/defs/<?php echo $projection ?>.js"></script>
+            <?php endif ?>
+            <script type="text/javascript" src="/js/geoconcept/geoconcept.js"></script>
+            <link rel="stylesheet" href="/css/geoconcept/htc.css"/>
         <?php endif ?>
     </div>
 
@@ -509,7 +529,7 @@
             // On va chercher les valeurs par défauts pour faire apparaitre la boite de confirmation
             var etablissements_enfants = [];
             $("table#etablissements_enfants tbody tr.etablissement_enfant").each(function(index) { etablissements_enfants[index] = $(this).find('input[name="ID_FILS_ETABLISSEMENT[]"]').first().val(); });
-            $.getJSON('/api/1.0/etablissement/defaults_values', {
+            $.post('/api/1.0/etablissement/defaults_values', {
                 genre: $("select[name='ID_GENRE']").find('option:selected').val(),
                 numinsee: $("#adresses").find('tr.adresse').first().find('input[type="hidden"]').first().val(),
                 type: $("select[name='ID_TYPE']").find('option:selected').val(),
@@ -855,7 +875,7 @@
                     data: {
                         name: query,
                         fonctions: 13,
-                        limit: 100,
+                        limit: 100
                     },
                     success: function (result) {
                         preventionnistes = [];
@@ -886,6 +906,7 @@
         // Auto complétion de la ville
         $("input[name='commune_ac']").autocomplete("/api/1.0/adresse/get_communes", {
             minChars: 2,
+            cacheLength: 0,
             parse: function(data) {
                 return $.map(data["response"], function(row) {return {data: row,value: row.LIBELLE_COMMUNE,result: row.LIBELLE_COMMUNE}});
             },
@@ -904,7 +925,8 @@
 
         // Auto complétion de la rue
         $("input[name='voie_ac']").autocomplete('/api/1.0/adresse/get_voies', {
-            minChars: 3,
+            minChars: 2,
+            cacheLength: 0,
             extraParams: { code_insee: function(){ return $("#adresse-modal input[name='code_insee']").val() } },
             parse: function(data) {
                 return $.map(data["response"], function(row) { return {data: row,value: row.LIBELLE_RUE,result: row.LIBELLE_RUE} });
@@ -920,42 +942,162 @@
             $(this).val("");
             $("#adresse-modal input[name='numero'], #adresse-modal input[name='complement']").val("").attr("disabled", true).blur();
         });
+        /***** Carte IGN *****/
+        <?php if($this->key_ign != null): ?>            
+            $('#adresse-modal #geolocme').click(function(e) {
+                e.preventDefault();
+                var adresse = "";
+                var numero = $("input[name='numero']").val().trim();
+                var voie = $("input[name='voie_ac']").val().trim();
+                var codepostal = $("input[name='code_postal']").val();
+                var commune = $("input[name='commune_ac']").val().replace(/\(.*\)/g, '');
+                if (!commune) {
+                    $("span.result").text("Pas de commune renseignée");
+                    return false;
+                }
+                if (!voie) {
+                    $("span.result").text("Pas de voie renseignée");
+                    return false;
+                }
+                if (numero) {
+                    adresse += numero + ", ";
+                }
+                adresse += voie + ", " + codepostal +  ", " + commune;
+                $("span.result").text("Géolocalisation en cours...");
 
-        <?php if($this->key_ign != null): ?>
-            viewer = initViewer(
-                "geoportail-container", 
-                "<?php echo $this->key_ign ?>", 
-                [{lon: -1.638023, lat: 48.134198999999995, description: ""}], 
+                viewer = Gp.Map.load(
+                 "geoportail-container", // identifiant du conteneur HTML
+                 {                 
+                 configUrl : "/js/sdk-ol/autoconf-https.json",
+                 // chargement de la cartographie en 2D
+                 viewMode : "2d",
+                 // niveau de zoom de la carte (de 1 à 21)
+                 zoom : 16,
+                 // centrage de la carte
+                 center : {
+                     location : adresse,
+                     projection : "CRS:84"
+                    },
+                 layersOptions : {
+                    // COUCHE DE BASE
+                    "ORTHOIMAGERY.ORTHOPHOTOS" : {},
+                    "GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD": {
+                        opacity : 0
+                    },
+                    // Autres couches à afficher rajoutées par l'utilisateur
+                    <?php foreach($this->couches_cartographiques as $couche_cartographique) : ?>
+                        <?php if ($couche_cartographique['URL_COUCHECARTO'] != null) : ?>
+                            <?php if ($couche_cartographique['TYPE_COUCHECARTO'] == 'WMS') : ?>
+                                "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
+                                        title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
+                                        format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
+                                        version : "1.3.0",
+                                        url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
+                                        layers : ["<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>"],
+                                        outputFormat : "<?php echo $couche_cartographique['FORMAT_COUCHECARTO'] ?>",
+                                        tiled : true,
+                                        visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
+                                        queryable : true,
+                                        gfiFormat : "text/html",
+                                        },
+                            <?php elseif ($couche_cartographique['TYPE_COUCHECARTO'] == 'WFS') : ?>
+                                "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
+                                        title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
+                                        format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
+                                        url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
+                                        typeNames : "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>",
+                                        version : "2.0.0",
+                                        //maxFeatures : 200,
+                                        visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
+                                        queryable : true,
+                                        },
+                            <?php endif ?>
+                        <?php else : ?>
+                            "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>" : {
+                                visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>
+                                },
+                        <?php endif ?>
+                    <?php endforeach ?>
+                    },
+                    // Outils additionnels à proposer sur la carte
+                    controlsOptions : {
+                        "layerSwitcher" : {},
+                        "search" : {
+                            //maximised : true
+                        },
+                        //"overview" : {},
+                        "orientation" : {},
+                        "graphicscale" : {},
+                        "mouseposition" : {},
+                        //"isocurve" : {},
+                        "graticule" : {},
+                        //"layerimport" : {},
+                        "length" : {},
+                        "area" : {},
+                        "azimuth" : {},
+                        "elevationpath" : {},
+                        "getfeatureinfo" : {
+                            layers : [
+                                {
+                                    "ORTHOIMAGERY.ORTHOPHOTOS" : {},
+                                    "GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {},
+                                }
+                            ],
+                            options : {
+                            auto : true,
+                            active: true,
+                            defaultInfoFormat: "text/html",
+                            defaultEvent: "singleclick",
+                            cursorStyle: "pointer",
+                            },
+                        },
+                    },
+                    // Repères visuels
+                    markersOptions : [{
+                        content : numero+', '+voie+'</br>'+codepostal+' '+commune 
+                    }],
+                    // Appel de la fonction après le chargement de la carte
+                    mapEventsOptions : {
+                        "mapLoaded" : afterInitMap
+                    },
+                });
+                // Ajout du bouton FullScreen sur la carte
+                function afterInitMap () {
+                    var fsControl = new ol.control.FullScreen({});
+                    viewer.getLibMap().addControl(fsControl);
+                    $("span.result").text("Géolocalisée IGN");
+                    console.log('Longitude : '+viewer.getCenter().x+'; Latitude : '+viewer.getCenter().y
+                        +'; Projection : '+viewer.getProjection());
+                    // Voir fonctions IGN pour lon et lat
+                    $("input[name='lon']").val(4.5112758);
+                    $("input[name='lat']").val(46.465786);
+                };
+
+                return false;
+            });
+        <?php endif ?>
+        
+        <?php if( $this->geoconcept_url != null): ?>
+                
+            <?php if ($token = getenv('PREVARISC_PLUGIN_GEOCONCEPT_TOKEN') && $app_id = getenv('PREVARISC_PLUGIN_GEOCONCEPT_APP_ID')): ?>
+                initGeoConceptKey('<?php echo $app_id ?>', '<?php echo $token ?>');
+            <?php endif ?>
+                                
+            var map = initGeoConceptViewer('geoconcept-container', 
+                "<?php echo $this->geoconcept_url ?>",
+                "<?php echo getenv('PREVARISC_PLUGIN_GEOCONCEPT_LAYER') ?>",
+                [{lat: <?php echo $this->default_lat ?>,lon: <?php echo $this->default_lon ?>, description: ""}],
                 <?php echo json_encode($this->couches_cartographiques) ?>,
                 function() {
                     
                     // removes the marker
-                    var vectorLayers = viewer.getViewer().getMap().getLayersByClass('OpenLayers.Layer.Vector');
+                    var vectorLayers = map.getLayersByClass('OpenLayers.Layer.Vector');
                     if (vectorLayers !== null && vectorLayers.length > 0) {
                         var vectorLayer = vectorLayers[0];
-                        if (vectorLayer.features !== null && vectorLayer.features.length > 0) {
-                            vectorLayer.features[0].destroy();
+                        for(var j = 0 ; j < vectorLayer.features.length ; j++) {
+                            vectorLayer.features[j].destroy();
                         }
                     }
-
-                    viewer.getViewer().getMap().events.register("moveend", viewer.getViewer().getMap(), function(e) {
-                        if (geolocalizing) {
-                            geolocalizing = false;
-                            var map = viewer.getViewer().getMap();
-                            var center = map.getCenter().transform(map.getProjection(), 'EPSG:4326');
-                            if(center && center.lon && center.lat) {
-                                $("span.result").text("Géolocalisée IGN");
-                                $("input[name='lon']").val(center.lon);
-                                $("input[name='lat']").val(center.lat);
-                                putMarkerAt(map, map.getCenter(), map.getProjection());
-                            }
-                            else {
-                                $("span.result").text("Introuvable");
-                                $("input[name='lon']").val(0);
-                                $("input[name='lat']").val(0);
-                            }
-                        }
-                    });
 
                     OpenLayers.Control.Click = OpenLayers.Class(OpenLayers.Control, {
                         defaultHandlerOptions:{
@@ -980,8 +1122,8 @@
                          * APIMethod: trigger
                          */
                         trigger: function(e) {
-                            var lonlat = this.map.getLonLatFromViewPortPx(e.xy).transform(
-                                this.map.getProjection(), OpenLayers.Projection.CRS84
+                            var lonlat = map.getLonLatFromViewPortPx(e.xy).transform(
+                                map.getProjection(), new OpenLayers.Projection("EPSG:4326")
                             );
 
                             $("span.result").text("Manuel par clic sur la carte");
@@ -989,21 +1131,20 @@
                             $("input[name='lat']").val(lonlat.lat);
 
                             // update map
-                            putMarkerAt(this.map, this.map.getLonLatFromViewPortPx(e.xy), this.map.getProjection());
+                            geoConceptPutMarkerAt(map, map.getLonLatFromViewPortPx(e.xy));
                         }
                     });
-
+                    
                     // création et insertion du nouveau contrôleur
-                    var monClic = new OpenLayers.Control.Click({
+                    map.addControl(new OpenLayers.Control.Click({
                         autoActivate:true
-                    });
-                    viewer.getViewer().getMap().addControl(monClic);
+                    }));
                 }
             );
-
-            geolocalizing = false;
-            $('#adresse-modal #geolocme').click(function(e) {
+    
+            $('#adresse-modal #geolocme-geoconcept').click(function(e) {
                 e.preventDefault();
+                var geocoderUrl = "<?php echo getenv('PREVARISC_PLUGIN_GEOCONCEPT_GEOCODER') ?>";
                 var adresse = "";
                 var numero = $("input[name='numero']").val().trim();
                 var voie = $("input[name='voie_ac']").val().trim();
@@ -1020,19 +1161,23 @@
                 if (numero) {
                     adresse += numero + ", ";
                 }
-                adresse += voie + ", " + codepostal +  " " + commune;
+                adresse += voie;
                 $("span.result").text("Géolocalisation en cours...");
-
-                geolocalizing = true;
-                console.log('Geolocalising : '+adresse);
-                viewer.setCenterAtLocation({
-                    address: adresse
+                geoConceptGeocode(geocoderUrl, map, adresse, codepostal, commune, function(result) {
+                    if (result) {
+                        $("span.result").text("Géolocalisée Geoconcept");
+                        $("input[name='lon']").val(result.x);
+                        $("input[name='lat']").val(result.y);
+                    }
+                    else {
+                        $("span.result").text("Introuvable");
+                        $("input[name='lon']").val(0);
+                        $("input[name='lat']").val(0);
+                    }
                 });
 
                 return false;
             });
-
-            
 
         <?php endif ?>
 
@@ -1067,6 +1212,12 @@
                             putMarkerAt(map, lonlat, map.getProjection());
                             viewer.setCenter(parseFloat(geolocations[0].lon), parseFloat(geolocations[0].lat));
                             viewer.setZoom(17);
+                        <?php elseif ($this->geoconcept_url != null): ?>
+                            var lonlat = new OpenLayers.LonLat(geolocations[0].lon, geolocations[0].lat);
+                            lonlat = lonlat.transform(new OpenLayers.Projection('EPSG:4326'), new OpenLayers.Projection(map.getProjection()));
+                            map.moveTo(lonlat, 8);
+                            geoConceptPutMarkerAt(map, lonlat);
+                            map.updateSize();
                         <?php endif ?>
                     }
                     else {
@@ -1082,6 +1233,5 @@
 
             return false;
         });
-
     });
 </script>
