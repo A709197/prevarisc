@@ -976,7 +976,7 @@
                  // centrage de la carte
                  center : {
                      location : adresse,
-                     projection : "CRS:84"
+                     projection : "EPSG:4326"                     
                     },
                  layersOptions : {
                     // COUCHE DE BASE
@@ -1032,10 +1032,6 @@
                         //"isocurve" : {},
                         "graticule" : {},
                         //"layerimport" : {},
-                        "length" : {},
-                        "area" : {},
-                        "azimuth" : {},
-                        "elevationpath" : {},
                         "getfeatureinfo" : {
                             layers : [
                                 {
@@ -1058,19 +1054,22 @@
                     }],
                     // Appel de la fonction après le chargement de la carte
                     mapEventsOptions : {
-                        "mapLoaded" : afterInitMap
-                    },
+                        "mapLoaded" : afterInitMap,
+                        "centerChanged" : afterCenterChanged // ou located, à voir
+                    }
                 });
                 // Ajout du bouton FullScreen sur la carte
                 function afterInitMap () {
                     var fsControl = new ol.control.FullScreen({});
                     viewer.getLibMap().addControl(fsControl);
-                    $("span.result").text("Géolocalisée IGN");
-                    console.log('Longitude : '+viewer.getCenter().x+'; Latitude : '+viewer.getCenter().y
-                        +'; Projection : '+viewer.getProjection());
-                    // Voir fonctions IGN pour lon et lat avec la bonne projection
-                    $("input[name='lon']").val(4.5112758);
-                    $("input[name='lat']").val(46.465786);
+                    $("span.result").text("Géolocalisée IGN");                    
+                };
+                function afterCenterChanged () {
+                    // Conversion des coordonnées de la projection EPSG:3857 vers la projection EPSG:4326 pour le stockage en base
+                    var lonlat = new ol.proj.transform([viewer.getCenter().x, viewer.getCenter().y],'EPSG:3857', 'EPSG:4326');
+                    console.log('Old proj : EPSG:3857; Coordinates : '+viewer.getCenter().x+','+viewer.getCenter().y+'; New proj : EPSG:4326; Coordinates : '+lonlat);
+                    $("input[name='lon']").val(lonlat[0]);
+                    $("input[name='lat']").val(lonlat[1]);
                 };
 
                 return false;
