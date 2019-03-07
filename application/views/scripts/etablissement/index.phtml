@@ -121,7 +121,7 @@
                 <tbody>
                     <?php foreach($this->etablissement['rubriques'] as $rubrique) : ?>
                         <tr>
-                            <td><?php echo $rubrique["ID_RUBRIQUE"] == 1 ? 'Substance' : 'Activité' ?></td>
+                            <td><?php echo $rubrique["ID_RUBRIQUE"] == 1 ? 'Substance' : ($rubrique["ID_RUBRIQUE"] == 2 ? 'Activité' : ($rubrique["ID_RUBRIQUE"] == 3 ? 'IED' : 'Produits dangereux')) ?></td>
                             <td><?php echo $rubrique["NUMERO_ETABLISSEMENTINFORMATIONSRUBRIQUE"] ?></td>
                             <td><?php echo $rubrique["NOM_ETABLISSEMENTINFORMATIONSRUBRIQUE"] ?></td>
                             <td><?php echo $rubrique["VALEUR_ETABLISSEMENTINFORMATIONSRUBRIQUE"] ?></td>
@@ -247,158 +247,204 @@
                 <?php if( count($this->etablissement['adresses']) > 0 && $this->key_googlemap != null && $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] != null && $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] != null) : ?>
                     <li class='tabs-right' ><a href='#googlemap' data-toggle="tab">Carte Google</a></li>
                 <?php endif ?>
+                 <?php if( count($this->etablissement['adresses']) > 0 && $this->geoconcept_url != null && $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] != null && $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] != null) : ?>
+                    <li class='tabs-right' ><a href='#geoconcept' data-toggle="tab">Carte GeoConcept</a></li>
+                <?php endif ?>
             </ul>
-			<div id="reponse-modal" class="modal hide fade"></div>
-			<div class="tab-content">
-            <!-- Carte IGN -->
-			<?php if( count($this->etablissement['adresses']) > 0 && $this->key_ign != null && $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] != null && $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] != null) : ?>
-				<div id="geoportail" class="tab-pane active" style="height: 350px; max-height: 350px;">
-				<div id="geoportail-container" style="height: 100%; max-height: 100%;"></div>
-				<!-- SDK Géoportail -->
-				<script src="/js/sdk-ol/GpSDK3D.js"></script>
-				<link rel="stylesheet" href="/js/sdk-ol/GpSDK3D.css" />
-				<!-- FIN SDK -->
-				<!-- Déplacement du bouton FullScreen (sinon supperposé avec le gestionnaire de couches) -->
-				<style>
-				.ol-full-screen {right:9px; top:49px}
-				</style>
-				<script type="text/javascript">
-					var map2 = Gp.Map.load("geoportail-container", {
-						 configUrl : "/js/sdk-ol/autoconf-https.json",
-						 // chargement de la cartographie en 2D
-						 viewMode : "2d",
-						 // niveau de zoom de la carte (de 1 à 21)
-						zoom : 16,
-						center : {
-							x : <?php echo $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] ?>,
-							y : <?php echo $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] ?>,
-							projection : "CRS:84"},
-						layersOptions : {
-							// COUCHE DE BASE
-							"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {},
-							// Autres couches à afficher rajoutées par l'utilisateur
-							<?php foreach($this->couches_cartographiques as $couche_cartographique) : ?>
-								<?php if ($couche_cartographique['URL_COUCHECARTO'] != null) : ?>
-									<?php if ($couche_cartographique['TYPE_COUCHECARTO'] == 'WMS') : ?>
-										"<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
-												title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
-												format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
-												version : "1.3.0",
-												url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
-												layers : ["<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>"],
-												outputFormat : "<?php echo $couche_cartographique['FORMAT_COUCHECARTO'] ?>",
-												tiled : true,
-												visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
-												queryable : true,
-												gfiFormat : "text/html",
-												},
-									<?php elseif ($couche_cartographique['TYPE_COUCHECARTO'] == 'WFS') : ?>
-										"<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
-												title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
-												format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
-												url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
-												typeNames : "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>",
-												version : "2.0.0",
-												//maxFeatures : 200,
-												visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
-												queryable : true,
-												},
-									<?php endif ?>
-								<?php else : ?>
-									"<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>" : {
-									visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>
-									},
-								<?php endif ?>
-							<?php endforeach ?>
-							},
-							// Outils additionnels à proposer sur la carte
-							controlsOptions : {
-								"layerSwitcher" : {},
-								"search" : {
-									//maximised : true
-								},
-								//"overview" : {},
-								"orientation" : {},
-								"graphicscale" : {},
-								"mouseposition" : {},
-								//"isocurve" : {},
-								"graticule" : {},
-								//"layerimport" : {},
-								"length" : {},
-								"area" : {},
-								"azimuth" : {},
-								"elevationpath" : {},
-								"getfeatureinfo" : {
-									layers : [
-										{
-											"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {},
-										}
-									],
-									options : {
-									auto : true,
-									active: true,
-									defaultInfoFormat: "text/html",
-									defaultEvent: "singleclick",
-									cursorStyle: "pointer",
-									},
-								},
-							},
-							// Repères visuels
-							markersOptions : [{
-								content : "<b><?php echo $this->etablissement['informations']['LIBELLE_ETABLISSEMENTINFORMATIONS'] ?></b><br/>"+
-								"<?php echo $this->etablissement['adresses'][0]['NUMERO_ADRESSE'] ?>, <?php echo $this->etablissement['adresses'][0]['LIBELLE_RUE'] ?><br/>"+
-								"<?php echo $this->etablissement['adresses'][0]['CODEPOSTAL_COMMUNE'] ?> <?php echo $this->etablissement['adresses'][0]['LIBELLE_COMMUNE'] ?><br/>"
-							}],
-							// Appel de la fonction après le chargement de la carte
-							mapEventsOptions : {
-								"mapLoaded" : afterInitMap
-							},
-						});
-						//
-						function afterInitMap () {
-							var fsControl = new ol.control.FullScreen({});
-							map2.getLibMap().addControl(fsControl);
-						};
-					</script>
-				</div>
-			<?php endif ?>
+            <div id="reponse-modal" class="modal hide fade"></div>
+            <div class="tab-content">
+                <!-- Carte IGN -->
+                <?php if( count($this->etablissement['adresses']) > 0 && $this->key_ign != null && $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] != null && $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] != null) : ?>
+                    <div id="geoportail" class="tab-pane active" style="height: 350px; max-height: 350px;">
+                    <div id="geoportail-container" style="height: 100%; max-height: 100%;"></div>
+                    <!-- SDK Géoportail -->
+                    <script src="/js/sdk-ol/GpSDK3D.js"></script>
+                    <link rel="stylesheet" href="/js/sdk-ol/GpSDK3D.css" />
+                    <!-- FIN SDK -->
+                    <!-- Déplacement du bouton FullScreen (sinon supperposé avec le gestionnaire de couches)
+                    et du panel Profil Altimétrique (sinon coupé en 2) -->
+                    <style>
+                    .ol-full-screen {right:9px; top:49px}
+                    div[id^=GPelevationPathPanel-] {top:-75px;}
+                    </style>
+                    <script type="text/javascript">
+                        viewer = Gp.Map.load("geoportail-container", {
+                             configUrl : "/js/sdk-ol/autoconf-https.json",
+                             // chargement de la cartographie en 2D
+                             viewMode : "2d",
+                             // niveau de zoom de la carte (de 1 à 21)
+                            zoom : 16,
+                            center : {
+                                x : <?php echo $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] ?>,
+                                y : <?php echo $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] ?>,
+                                projection : "EPSG:4326"},                       
+                            layersOptions : {                                
+                                // COUCHE DE BASE
+                                "ORTHOIMAGERY.ORTHOPHOTOS" : {},
+                                "GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {
+                                    opacity : 0
+                                },
+                                // Autres couches à afficher rajoutées par l'utilisateur
+                                <?php foreach($this->couches_cartographiques as $couche_cartographique) : ?>
+                                    <?php if ($couche_cartographique['URL_COUCHECARTO'] != null) : ?>
+                                        <?php if ($couche_cartographique['TYPE_COUCHECARTO'] == 'WMS') : ?>
+                                            "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
+                                                    title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
+                                                    format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
+                                                    version : "1.3.0",
+                                                    url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
+                                                    layers : ["<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>"],
+                                                    outputFormat : "<?php echo $couche_cartographique['FORMAT_COUCHECARTO'] ?>",
+                                                    tiled : true,
+                                                    visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
+                                                    queryable : true,
+                                                    gfiFormat : "text/html",
+                                                    },
+                                        <?php elseif ($couche_cartographique['TYPE_COUCHECARTO'] == 'WFS') : ?>
+                                            "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
+                                                    title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
+                                                    format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
+                                                    url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
+                                                    typeNames : "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>",
+                                                    version : "2.0.0",
+                                                    //maxFeatures : 200,
+                                                    visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
+                                                    queryable : true,
+                                                    },
+                                        <?php endif ?>
+                                    <?php else : ?>
+                                        "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>" : {
+                                        visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>
+                                        },
+                                    <?php endif ?>
+                                <?php endforeach ?>
+                                },
+                                // Outils additionnels à proposer sur la carte
+                                controlsOptions : {
+                                    "layerSwitcher" : {},
+                                    "search" : {
+                                        //maximised : true
+                                    },
+                                    //"overview" : {},
+                                    "orientation" : {},
+                                    "graphicscale" : {},
+                                    "mouseposition" : {},
+                                    //"isocurve" : {},
+                                    "graticule" : {},
+                                    //"layerimport" : {},
+                                    "length" : {},
+                                    "area" : {},
+                                    "azimuth" : {},
+                                    "elevationpath" : {},
+                                    "getfeatureinfo" : {
+                                        layers : [
+                                            {
+                                                "GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {},
+                                            }
+                                        ],
+                                        options : {
+                                        auto : true,
+                                        active: true,
+                                        defaultInfoFormat: "text/html",
+                                        defaultEvent: "singleclick",
+                                        cursorStyle: "pointer",
+                                        },
+                                    },
+                                },
+                                // Repères visuels
+                                markersOptions : [{
+                                    content : "<b><?php echo $this->etablissement['informations']['LIBELLE_ETABLISSEMENTINFORMATIONS'] ?></b><br/>"+
+                                    "<?php echo $this->etablissement['adresses'][0]['NUMERO_ADRESSE'] ?>, <?php echo $this->etablissement['adresses'][0]['LIBELLE_RUE'] ?><br/>"+
+                                    "<?php echo $this->etablissement['adresses'][0]['CODEPOSTAL_COMMUNE'] ?> <?php echo $this->etablissement['adresses'][0]['LIBELLE_COMMUNE'] ?><br/>"
+                                }],
+                                // Appel de la fonction après le chargement de la carte
+                                mapEventsOptions : {
+                                    "mapLoaded" : afterInitMap
+                                }
+                            });
+                            //
+                            function afterInitMap () {
+                                var fsControl = new ol.control.FullScreen({});
+                                viewer.getLibMap().addControl(fsControl);
+                            };
+                        </script>
+                    </div>
+                <?php endif ?>
+                
+                <?php if( count($this->etablissement['adresses']) > 0 && $this->geoconcept_url != null && $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] != null && $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] != null) : ?>
+                <div id='geoconcept' class="tab-pane in" style="height: 350px; max-height: 350px;width: 100%">
+                    <div id='geoconcept-container'  style="height: 100%; max-height: 100%;width: 100%"></div>
+                    <script type="text/javascript" src="/js/geoconcept/OpenLayers.js"></script>
+                    <script type="text/javascript" src="/js/geoconcept/proj4js.js"></script>
+                    <script type="text/javascript" src="/js/geoconcept/htc-lite.js"></script>
+                    <?php if ($projection = getenv('PREVARISC_PLUGIN_GEOCONCEPT_PROJECTION')): ?>
+                    <script type="text/javascript" src="/js/geoconcept/defs/<?php echo $projection ?>.js"></script>
+                    <?php endif ?>
+                    <script type="text/javascript" src="/js/geoconcept/geoconcept.js"></script>
+                    <link rel="stylesheet" href="/css/geoconcept/htc.css"/>
+                    <script>
+                        $(document).ready(function() {
+                            <?php if ($token = getenv('PREVARISC_PLUGIN_GEOCONCEPT_TOKEN') && $app_id = getenv('PREVARISC_PLUGIN_GEOCONCEPT_APP_ID')): ?>
+                                initGeoConceptKey('<?php echo $app_id ?>', '<?php echo $token ?>');
+                            <?php endif ?>
+                                
+                            var points = [];
+                            <?php foreach($this->etablissement['adresses'] as $adresse): ?>
+                                <?php if ($adresse['LAT_ETABLISSEMENTADRESSE'] && $adresse['LON_ETABLISSEMENTADRESSE']): ?>
+                                    points.push({
+                                        lat: <?php echo $adresse['LAT_ETABLISSEMENTADRESSE'] ?>,
+                                        lon: <?php echo $adresse['LON_ETABLISSEMENTADRESSE'] ?>,
+                                        description: "<?php echo htmlentities(strtolower($adresse["NUMERO_ADRESSE"]." ".$adresse["LIBELLE_RUE"]." ".$adresse["CODEPOSTAL_COMMUNE"]). " " .$adresse["LIBELLE_COMMUNE"])." <br />" ?>"
+                                                    + "long=<?php echo $adresse['LON_ETABLISSEMENTADRESSE'] ?>, lat=<?php echo $adresse['LAT_ETABLISSEMENTADRESSE'] ?>"
+                                    });
+                                <?php endif ?>
+                            <?php endforeach ?>
+                            map = initGeoConceptViewer('geoconcept-container', 
+                                "<?php echo $this->geoconcept_url ?>",
+                                "<?php echo getenv('PREVARISC_PLUGIN_GEOCONCEPT_LAYER') ?>",
+                                points,
+                                <?php echo json_encode($this->couches_cartographiques) ?>
+                            );
+                        });
+                    </script>
+                </div>
 
-				<!-- Carte GoogleMap -->
+                <?php endif ?>
+
                 <?php if( count($this->etablissement['adresses']) > 0 && $this->key_googlemap != null && $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] != null && $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] != null) : ?>
                 <div id='googlemap' class="tab-pane in" style="height: 350px; max-height: 350px;">
-                    <div id='googlemap-container' style="height: 100%; max-height: 100%;"></div>
+                    <div id='googlemap-container'  style="height: 100%; max-height: 100%;"></div>
                     <script type="text/javascript"
-                      src="https://maps.googleapis.com/maps/api/js?key=<?php echo $this->key_googlemap ?>&sensor=false">
+                        src="https://maps.googleapis.com/maps/api/js?key=<?php echo $this->key_googlemap ?>&sensor=false">
                       </script>
                       <script type="text/javascript">
-						//désactivation fonction initialize qui temporise l'affichage de la carte google (affichage après IGN)
-                        //function initialize() {
+                        function initialize() {
                           var point = new google.maps.LatLng(<?php echo $this->etablissement['adresses'][0]['LAT_ETABLISSEMENTADRESSE'] ?>, <?php echo $this->etablissement['adresses'][0]['LON_ETABLISSEMENTADRESSE'] ?>);
                           var map = new google.maps.Map(document.getElementById("googlemap-container"), {
                             center: point,
-                            zoom: 16
+                            zoom: 12
                           });
                           var marker = new google.maps.Marker({
                                 position: point,
                                 map: map,
                                 title: "<?php echo $this->etablissement['informations']['LIBELLE_ETABLISSEMENTINFORMATIONS'] ?>"
-                          });
-                          var infowindow = new google.maps.InfoWindow({
+                            });
+
+                           var infowindow = new google.maps.InfoWindow({
                                 content:
-                                "<b><?php echo $this->etablissement['informations']['LIBELLE_ETABLISSEMENTINFORMATIONS'] ?></b> <br />"+
                                 "<?php echo $this->etablissement['adresses'][0]['NUMERO_ADRESSE'] ?>, "+
                                 "<?php echo $this->etablissement['adresses'][0]['LIBELLE_RUE'] ?> <br />"+
                                 "<?php echo $this->etablissement['adresses'][0]['CODEPOSTAL_COMMUNE'] ?> "+
                                 "<?php echo $this->etablissement['adresses'][0]['LIBELLE_COMMUNE'] ?> "
-                          });
+                            });
                             infowindow.open(map,marker);
-                          //};
+                          };
+
                           google.maps.event.addDomListener(window, 'load', initialize);
                       </script>
                 </div>
                 <?php endif ?>
 
-                <!-- Diaporama photo -->
                 <?php if( count($this->etablissement['diapo']) > 0 ) : ?>
                 <div id='diaporama-tab-pane' class='tab-pane'>
                     <div id='diaporama' class="carousel slide">
@@ -430,7 +476,6 @@
                 </div>
                 <?php endif ?>
 
-                <!-- Plans -->
                 <?php if( count($this->etablissement['diapo_plans']) > 0 ) : ?>
                 <div id='plans-tab-pane' class='tab-pane'>
                     <div id='plans' class="carousel slide">
@@ -597,9 +642,99 @@
 
 </div>
 
+<!-- Boite de confirmation de la suppression (cachée par défaut) -->
+<div id="confirm-modal" class="modal hide fade" >
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h3>Confirmation de la suppression</h3>
+    </div>
+
+    <div class="modal-body">
+        <p> Etes-vous sûr de vouloir supprimer l'établissement ? </p>
+    </div>
+
+    <div class="modal-footer">
+        <a href="#" data-dismiss="modal" class="btn">Annuler</a>
+        <a href="<?php echo $this->url(array($this->idEtablissement, 'action' => 'delete')); ?>" class='btn btn-success'>Confirmer</a>
+    </div>
+</div>
+
 <script type="text/javascript">
+
     $(document).ready(function() {
         // Par défaut, on montre le premier onglet disponible (carte, diapo, ou plans) sinon rien
         $('#menu_nav a:last').tab('show');
+
+        $(".alerte-link").click(function() {
+            var idEts = "<?php echo $this->etablissement['general']['ID_ETABLISSEMENT'] ?>";
+            var changement = $(this).attr("data-value");
+            var dialogAlerte = $('<div style="display:none;"></div>').appendTo('body');
+    
+            dialogAlerte.dialog({
+                title: "Alerte",
+                modal: true,
+                autoOpen: false,
+                width: 600,
+                height: 'auto',
+                buttons: [{
+                    text: "Envoyer",
+                    "id": "mail-button-envoi",
+                    click: function() {
+                        tinymce.triggerSave();
+                        if ($("#mail-button-envoi").text() === "Envoyer") {
+                            $.ajax({
+                                type: "POST",
+                                url: "/changement/sendmailalerte",
+                                data: $("#formAlerte").serialize()
+                            });
+                        }
+
+                        tinymce.remove();
+                        dialogAlerte.html("");
+                        dialogAlerte.dialog("close");
+                        dialogAlerte.remove();
+                    }
+                }],
+                close: function(event, ui){
+                    tinymce.remove();
+                    dialogAlerte.html("");
+                    dialogAlerte.dialog("close");
+                    dialogAlerte.remove();
+                }
+            });
+            $.ajax({
+                type: "POST",
+                url: "/changement/alerteform",
+                data: { "id_etablissement": idEts, "changement": changement },
+                success: function(msg) {
+                    dialogAlerte.html(msg);
+                    tinymce.init({
+                        selector: '.tinyarea',
+                        height: 220,
+                        menubar: false,
+                        statusbar: false,
+                        toolbar: false,
+                        plugins: [
+                            'advlist autolink lists link image charmap print preview anchor',
+                            'searchreplace visualblocks code fullscreen',
+                            'insertdatetime media table contextmenu paste code'
+                        ],
+                        content_css: [
+                            '//fast.fonts.net/cssapi/e6dc9b99-64fe-4292-ad98-6974f93cd2a2.css',
+                            '//www.tinymce.com/css/codepen.min.css'
+                        ]
+                    });
+                    dialogAlerte.dialog("open");
+                },
+            });
+            return false;
+            
+        });
+
+        // fenetre de confirmation de la suppression
+        $("#suppressionEtablissement").click(function(){
+            $('#confirm-modal').modal({show:true});
+        }); 
+
     });
 </script>
