@@ -1,119 +1,120 @@
 <?php if ($this->key_ign != null) : ?>
-	<div id="mapGeoportail" style="height: 350px; max-height: 350px;"></div>
-	<div id="info"></div>
-	<!-- SDK Géoportail -->
-	<script src="/js/sdk-ol/GpSDK3D.js"></script>
-	<link rel="stylesheet" href="/js/sdk-ol/GpSDK3D.css" />
-	<!-- FIN SDK -->
-	<!-- Déplacement du bouton FullScreen (sinon supperposé avec le gestionnaire de couches) -->
-	<style>
-	.ol-full-screen {right:9px; top:49px}
-	</style>
-	<script>
-	//
-	var map = Gp.Map.load(
-	"mapGeoportail", // identifiant du conteneur HTML
-		{
-			 // Geoportal access key obtained here : http://professionnels.ign.fr/ign/contrats
-			 configUrl : "/js/sdk-ol/autoconf-https.json",
-			 // chargement de la cartographie en 2D
-			 viewMode : "2d",
-			 // niveau de zoom de la carte (de 1 à 21)
-			 zoom : 14,
-			 // centrage de la carte
-			 center : {
-				 geolocate : true
-				},
-			 layersOptions : {
-				// COUCHE DE BASE
-				"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD": {},
-				// Autres couches à afficher rajoutées par l'utilisateur
-					<?php foreach($this->couches_cartographiques as $couche_cartographique) : ?>
-							<?php if ($couche_cartographique['URL_COUCHECARTO'] != null) : ?>
-								<?php if ($couche_cartographique['TYPE_COUCHECARTO'] == 'WMS') : ?>
-									"<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
-           									title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
-           									format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
-           									version : "1.3.0",
-           									url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
-           									layers : ["<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>"],
-           									outputFormat : "<?php echo $couche_cartographique['FORMAT_COUCHECARTO'] ?>",
-           									tiled : true,
-											visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
-											queryable : true,
-											gfiFormat : "text/html",
-											},
-								<?php elseif ($couche_cartographique['TYPE_COUCHECARTO'] == 'WFS') : ?>
-									"<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
-											title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
-											format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
-											url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
-											typeNames : "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>",
-											version : "2.0.0",
-											//maxFeatures : 200,
-											visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
-											queryable : true,
-											},
-								<?php endif ?>
-							<?php else : ?>
-								"<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>" : {
-									visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>
-									},
-							<?php endif ?>
-        				<?php endforeach ?>
-				},
-				// Outils additionnels à proposer sur la carte
-				controlsOptions : {
-					"layerSwitcher" : {},
-					"search" : {
-						//maximised : true
-					},
-					//"overview" : {},
-					"orientation" : {},
-					"graphicscale" : {},
-					"mouseposition" : {},
-					//"isocurve" : {},
-					"graticule" : {},
-					//"layerimport" : {},
-					"length" : {},
-					"area" : {},
-					"azimuth" : {},
-					"elevationpath" : {},
-					"getfeatureinfo" : {
-						layers : [
-							{
-								"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {},
-							}
-						],
-						options : {
-						auto : true,
-						active: true,
-						defaultInfoFormat: "text/html",
-						defaultEvent: "singleclick",
-						cursorStyle: "pointer",
-						},
-					},
-				},
-				// Repères visuels
-				markersOptions : [{
-					content : "<h1>SDIS DE L'ARDECHE</h1><br/><p>512 Chemin de St-Clair, PRIVAS</p><br/><p><a href='http://www.sdis07.fr' target='_blank'>Site Web</a></p>"
-				}],
-				// Appel de la fonction après le chargement de la carte
-				mapEventsOptions : {
-					"mapLoaded" : afterInitMap
-				},
-		}
-	);
-	// Affichage de la version du SDK et de sa date de création
-	var infoDiv = document.getElementById("info");
-	infoDiv.innerHTML = "<h6><p><b><i> SDK version " + Gp.sdkVersion + " (" + Gp.sdkDate + ")</b></i></p></h6>";
-	// Ajout du bouton FullScreen sur la carte
-	function afterInitMap () {
-		var fsControl = new ol.control.FullScreen({});
-		map.getLibMap().addControl(fsControl);
-	};
-	</script>
-	
+    <div id='geoportail-container'  style="height: 350px; max-height: 350px;"></div>
+    <div id="info"></div>
+    <!-- SDK Géoportail -->
+    <script src="/js/sdk-ol/GpSDK3D.js"></script>
+    <link rel="stylesheet" href="/js/sdk-ol/GpSDK3D.css" />
+    <!-- FIN SDK -->
+    <!-- Déplacement du bouton FullScreen (sinon supperposé avec le gestionnaire de couches)
+    et du panel Profil Altimétrique (sinon coupé en 2) -->
+    <style>
+    .ol-full-screen {right:9px; top:49px;}
+    div[id^=GPelevationPathPanel-] {top:-75px;}
+    </style>
+    <script type="text/javascript">
+        viewer = Gp.Map.load("geoportail-container", {
+         configUrl : "/js/sdk-ol/autoconf-https.json",
+         //configUrl : "/js/sdk-ol/autoconf-https.json",
+         // chargement de la cartographie en 2D
+         viewMode : "2d",
+         // niveau de zoom de la carte (de 1 à 21)
+        zoom : 16,
+        center : {
+            x : 4.842830,
+            y : 46.329265,
+            projection : "EPSG:4326"},
+        layersOptions : {                                
+            // COUCHE DE BASE
+            "ORTHOIMAGERY.ORTHOPHOTOS" : {},
+            "GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {
+                opacity : 0
+            },
+            // Autres couches à afficher rajoutées par l'utilisateur
+            <?php foreach($this->couches_cartographiques as $couche_cartographique) : ?>
+                <?php if ($couche_cartographique['URL_COUCHECARTO'] != null) : ?>
+                    <?php if ($couche_cartographique['TYPE_COUCHECARTO'] == 'WMS') : ?>
+                        "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
+                                title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
+                                format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
+                                version : "1.3.0",
+                                url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
+                                layers : ["<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>"],
+                                outputFormat : "<?php echo $couche_cartographique['FORMAT_COUCHECARTO'] ?>",
+                                tiled : true,
+                                visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
+                                queryable : true,
+                                gfiFormat : "text/html",
+                                },
+                    <?php elseif ($couche_cartographique['TYPE_COUCHECARTO'] == 'WFS') : ?>
+                        "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>" : {
+                                title : "<?php echo $couche_cartographique['NOM_COUCHECARTO'] ?>",
+                                format : "<?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?>",
+                                url : "<?php echo $couche_cartographique['URL_COUCHECARTO'] ?>",
+                                typeNames : "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>",
+                                version : "2.0.0",
+                                //maxFeatures : 200,
+                                visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>,
+                                queryable : true,
+                                },
+                    <?php endif ?>
+                <?php else : ?>
+                    "<?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?>" : {
+                    visibility : <?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>false<?php else : ?>true<?php endif ?>
+                    },
+                <?php endif ?>
+            <?php endforeach ?>
+            },
+            // Outils additionnels à proposer sur la carte
+            controlsOptions : {
+                "layerSwitcher" : {},
+                "search" : {
+                    //maximised : true
+                },
+                //"overview" : {},
+                "orientation" : {},
+                "graphicscale" : {},
+                "mouseposition" : {},
+                //"isocurve" : {},
+                "graticule" : {},
+                //"layerimport" : {},
+                "length" : {},
+                "area" : {},
+                "azimuth" : {},
+                "elevationpath" : {},
+                "getfeatureinfo" : {
+                    layers : [
+                        {
+                            "GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD" : {},
+                        }
+                    ],
+                    options : {
+                    auto : true,
+                    active: true,
+                    defaultInfoFormat: "text/html",
+                    defaultEvent: "singleclick",
+                    cursorStyle: "pointer",
+                    },
+                },
+            },
+            // Repères visuels
+            markersOptions : [{
+                content : "<b>SDIS 71</b><br/>4 Rue des Grandes Varennes</br>71000 Sancé"
+            }],
+            // Appel de la fonction après le chargement de la carte
+            mapEventsOptions : {
+                "mapLoaded" : afterInitMap
+            }
+        });
+        // Ajout du bouton FullScreen
+        function afterInitMap () {
+            var fsControl = new ol.control.FullScreen({});
+            viewer.getLibMap().addControl(fsControl);
+        };
+        // Affichage de la version du SDK et de sa date de création
+        var infoDiv = document.getElementById("info");
+        infoDiv.innerHTML = "<h6><p><b><i> SDK version " + Gp.sdkVersion + " (" + Gp.sdkDate + ")</b></i></p></h6>";
+    </script>
+    
 <?php elseif ($this->geoconcept_url != null) : ?>
     <div id='geoconcept-container'  style="height: 350px; max-height: 350px;width: 100%"></div>
     <script type="text/javascript" src="/js/geoconcept/OpenLayers.js"></script>
@@ -144,45 +145,33 @@
             );
         });
     </script>
+    
+    
 <?php elseif ($this->key_googlemap != null) : ?>
-    <div id='map' style="height: 700px; max-height: 700px;"></div>
-    <script>
-        var points = [];
-        points.push({
-            lat: <?php echo $this->default_lat ?>,
-            lon: <?php echo $this->default_lon ?>,
-            description: "Centre par défaut"
+    <div id='googlemap-container' style="height: 350px; max-height: 350px;"></div>
+    <script type="text/javascript"
+        src="https://maps.googleapis.com/maps/api/js?key=<?php echo $this->key_googlemap ?>&sensor=false">
+    </script>
+    <script type="text/javascript">
+        function initialize() {
+        var point = new google.maps.LatLng(<?php echo $this->default_lat ?>, <?php echo $this->default_lon ?>);
+        var map = new google.maps.Map(document.getElementById("googlemap-container"), {
+            center: point,
+            zoom: 12
         });
-        function initialize()
-        {
-            var mapDiv = document.getElementById('map');
-            var map = new google.maps.Map(mapDiv, {zoom: 12,center: new google.maps.LatLng(<?php echo $this->default_lat ?>, <?php echo $this->default_lon ?>)});
-            var bounds = {
-                17: [[20969, 20970], [50657, 50658]],
-                18: [[41939, 41940], [101315, 101317]],
-                19: [[83878, 83881], [202631, 202634]],
-                20: [[167757, 167763], [405263, 405269]]
-                };
-            var imageMapType = new google.maps.ImageMapType({
-                getTileUrl: function(coord, zoom) {
-                if (zoom < 17 || zoom > 20 || bounds[zoom][0][0] > coord.x || coord.x > bounds[zoom][0][1] || bounds[zoom][1][0] > coord.y || coord.y > bounds[zoom][1][1]) {return null;}
-                return ['//www.gstatic.com/io2010maps/tiles/5/L2_',
-                zoom, '_', coord.x, '_', coord.y, '.png'].join('');
-                },
-                tileSize: new google.maps.Size(700, 700)
-                });
-            var marker = new google.maps.Marker({
-                 position: new google.maps.LatLng(<?php echo $this->default_lat ?>, <?php echo $this->default_lon ?>),
-                 map: map,
-                 title: "<?php echo $this->etablissement['informations']['LIBELLE_ETABLISSEMENTINFORMATIONS'] ?>"});
-            // google.maps.event.addDomListener(mapDiv, 'click', function() {window.alert("COUCOU")});
-            map.overlayMapTypes.push(imageMapType);
-        };
-    </script>
-    <script async defer
-     src="https://maps.googleapis.com/maps/api/js?key=<?php echo $this->key_googlemap ?>&callback=initialize">
-    </script>
+          
+        var marker = new google.maps.Marker({
+            position: point,
+            map: map,
+            title: "<?php echo $this->etablissement['informations']['LIBELLE_ETABLISSEMENTINFORMATIONS'] ?>"
+        });
+
+
+        google.maps.event.addDomListener(window, 'load', initialize);
+     </script>
+     
 <?php else: ?>
+
     <div class='well well-large text-center'>
         <p class='lead'>Aucun player cartographique configuré.</p>
         <p>Vous devez configurer comme ceci : </p>
@@ -190,6 +179,8 @@
         <pre>SetEnv PREVARISC_PLUGIN_GOOGLEMAPKEY XXXXXXXXXXXX</pre>
         <pre>SetEnv PREVARISC_PLUGIN_GEOCONCEPT_URL XXXXXXXXXXXX</pre>
     </div>
+
+    
 <?php endif ?>
 
 <?php if(count($this->couches_cartographiques) == 0) : ?>
@@ -198,16 +189,16 @@
         <p class='lead'>Il n'y a pas de couche cartographique.</p>
         <p><a href='<?php echo $this->url(array('action' => 'add')) ?>' class='btn btn-large'>Ajouter une couche cartographique</a></p>
     </div>
+
 <?php else : ?>
+
     <p class='text-right'><a class='btn' href='<?php echo $this->url(array('controller' => 'couches-cartographiques', 'action' => 'add'), null, true) ?>'>Ajouter une couche</a></p>
+
     <table class="table">
         <thead>
             <tr>
                 <th>Type</th>
                 <th>Nom de la couche</th>
-                <th>Visible</th>
-                <th>Nom de la couche dans le flux</th>
-                <th>URL</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -216,9 +207,6 @@
             <tr>
                 <td><?php echo $couche_cartographique['TYPE_COUCHECARTO'] ?></td>
                 <td><?php echo $couche_cartographique['NOM_COUCHECARTO'].(($couche_cartographique['ISBASELAYER_COUCHECARTO']) ? " (couche de base)" : "") ?></td>
-				<td><?php if ($couche_cartographique['TRANSPARENT_COUCHECARTO'] == 0) : ?>non<?php else : ?>oui<?php endif ?></td>
-                <td><?php echo $couche_cartographique['LAYERS_COUCHECARTO'] ?></td>
-                <td><?php echo $couche_cartographique['URL_COUCHECARTO'] ?></td>
                 <td>
                     <a href="<?php echo $this->url(array('action' => 'edit', 'id' => $couche_cartographique['ID_COUCHECARTO'])) ?>">Éditer la couche</a><br/>
                     <a href="<?php echo $this->url(array('action' => 'delete', 'id' => $couche_cartographique['ID_COUCHECARTO'])) ?>">Supprimer</a>
@@ -227,4 +215,5 @@
             <?php endforeach ?>
         </tbody>
     </table>
+
 <?php endif ?>
